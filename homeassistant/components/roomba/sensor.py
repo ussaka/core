@@ -78,14 +78,26 @@ SENSORS: list[RoombaSensorEntityDescription] = [
         translation_key="total_cleaning_time",
         native_unit_of_measurement=UnitOfTime.HOURS,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda self: self.run_stats.get("hr"),
+        value_fn=lambda self: (
+            self.run_stats.get("hr")
+            if self.run_stats.get("hr") is not None
+            else (
+                self.run_stats.get("mssnM") / 60
+                if self.run_stats.get("mssnM")
+                else None
+            )
+        ),
     ),
     RoombaSensorEntityDescription(
         key="average_mission_time",
         translation_key="average_mission_time",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda self: self.mission_stats.get("aMssnM"),
+        value_fn=lambda self: (
+            self.mission_stats.get("aMssnM")
+            if self.mission_stats.get("aMssnM") is not None
+            else self.mission_stats.get("mssnM")
+        ),
     ),
     RoombaSensorEntityDescription(
         key="total_missions",

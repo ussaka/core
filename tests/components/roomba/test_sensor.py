@@ -135,3 +135,37 @@ async def test_rssi_refreshes_on_wifi_only_message(
     await hass.async_block_till_done()
 
     assert hass.states.get(entity_id).state == "-62"
+
+
+async def test_stats_fallback_to_clean_mission_status(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_roomba: AsyncMock,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Test newer Roomba models expose mission stats in cleanMissionStatus."""
+    reported = mock_roomba.master_state["state"]["reported"]
+    reported.pop("bbrun", None)
+    reported.pop("bbmssn", None)
+    reported["cleanMissionStatus"] = {
+        "mssnM": 90,
+        "nMssn": 718,
+        "sqft": 100,
+        "phase": "run",
+        "cycle": "clean",
+    }
+
+    with patch("homeassistant.components.roomba.PLATFORMS", [Platform.SENSOR]):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    entity_registry.async_update_entity(
+        "sensor.test_roomba_total_cleaned_area", disabled_by=None
+    )
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.test_roomba_total_cleaning_time").state == "1.5"
+    assert hass.states.get("sensor.test_roomba_total_missions").state == "718"
+    assert hass.states.get("sensor.test_roomba_total_cleaned_area").state == "929.0"
