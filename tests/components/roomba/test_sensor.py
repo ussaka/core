@@ -173,19 +173,32 @@ async def test_lifetime_stats_unavailable_in_mission_status(
 
 
 @pytest.mark.parametrize(
-    "stats_key",
-    [pytest.param("bbrun", id="legacy"), pytest.param("runtimeStats", id="runtime")],
+    ("bbrun", "runtime_stats"),
+    [
+        pytest.param(
+            {"hr": 211, "min": 48, "sqft": 566, "nScrubs": 9},
+            {},
+            id="legacy",
+        ),
+        pytest.param(
+            {"nScrubs": 9},
+            {"hr": 211, "min": 48, "sqft": 566},
+            id="runtime",
+        ),
+    ],
 )
 async def test_lifetime_stats_from_run_report(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_roomba: AsyncMock,
     entity_registry: er.EntityRegistry,
-    stats_key: str,
+    bbrun: dict[str, int],
+    runtime_stats: dict[str, int],
 ) -> None:
     """Test cumulative runtime and area are read and converted from run stats."""
     reported = mock_roomba.master_state["state"]["reported"]
-    reported[stats_key] = {"hr": 211, "min": 48, "sqft": 566}
+    reported["bbrun"] = bbrun
+    reported["runtimeStats"] = runtime_stats
 
     with patch("homeassistant.components.roomba.PLATFORMS", [Platform.SENSOR]):
         mock_config_entry.add_to_hass(hass)
@@ -195,8 +208,10 @@ async def test_lifetime_stats_from_run_report(
     entity_registry.async_update_entity(
         "sensor.test_roomba_total_cleaned_area", disabled_by=None
     )
+    entity_registry.async_update_entity("sensor.test_roomba_scrubs", disabled_by=None)
     await hass.config_entries.async_reload(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
     assert hass.states.get("sensor.test_roomba_total_cleaning_time").state == "211.8"
     assert hass.states.get("sensor.test_roomba_total_cleaned_area").state == "52.5814"
+    assert hass.states.get("sensor.test_roomba_scrubs").state == "9"
