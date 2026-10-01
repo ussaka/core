@@ -79,13 +79,10 @@ SENSORS: list[RoombaSensorEntityDescription] = [
         native_unit_of_measurement=UnitOfTime.HOURS,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda self: (
-            self.run_stats.get("hr")
+            (self.run_stats.get("hr") or 0) + self.run_stats.get("min", 0) / 60
             if self.run_stats.get("hr") is not None
-            else (
-                self.run_stats.get("mssnM") / 60
-                if self.run_stats.get("mssnM")
-                else None
-            )
+            or self.run_stats.get("min") is not None
+            else None
         ),
     ),
     RoombaSensorEntityDescription(
@@ -93,11 +90,7 @@ SENSORS: list[RoombaSensorEntityDescription] = [
         translation_key="average_mission_time",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda self: (
-            self.mission_stats.get("aMssnM")
-            if self.mission_stats.get("aMssnM") is not None
-            else self.mission_stats.get("mssnM")
-        ),
+        value_fn=lambda self: self.mission_stats.get("aMssnM"),
     ),
     RoombaSensorEntityDescription(
         key="total_missions",
@@ -105,7 +98,11 @@ SENSORS: list[RoombaSensorEntityDescription] = [
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="Missions",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda self: self.mission_stats.get("nMssn"),
+        value_fn=lambda self: (
+            self.mission_stats.get("nMssn")
+            if self.mission_stats.get("nMssn") is not None
+            else self.vacuum_state.get("cleanMissionStatus", {}).get("nMssn")
+        ),
     ),
     RoombaSensorEntityDescription(
         key="successful_missions",
@@ -146,7 +143,7 @@ SENSORS: list[RoombaSensorEntityDescription] = [
         native_unit_of_measurement=UnitOfArea.SQUARE_METERS,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda self: (
-            None if (sqft := self.run_stats.get("sqft")) is None else sqft * 9.29
+            None if (sqft := self.run_stats.get("sqft")) is None else sqft * 0.0929
         ),
         suggested_display_precision=0,
         entity_registry_enabled_default=False,

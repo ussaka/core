@@ -137,20 +137,21 @@ async def test_rssi_refreshes_on_wifi_only_message(
     assert hass.states.get(entity_id).state == "-62"
 
 
-async def test_stats_fallback_to_clean_mission_status(
+async def test_lifetime_stats_unavailable_in_mission_status(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_roomba: AsyncMock,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """Test newer Roomba models expose mission stats in cleanMissionStatus."""
+    """Test mission and system stats are not reported as lifetime run stats."""
     reported = mock_roomba.master_state["state"]["reported"]
     reported.pop("bbrun", None)
     reported.pop("bbmssn", None)
+    reported["bbsys"] = {"hr": 28839, "min": 19}
     reported["cleanMissionStatus"] = {
-        "mssnM": 90,
-        "nMssn": 718,
-        "sqft": 100,
+        "mssnM": 0,
+        "mssnStrtTm": 1790831484,
+        "nMssn": 861,
         "phase": "run",
         "cycle": "clean",
     }
@@ -166,6 +167,36 @@ async def test_stats_fallback_to_clean_mission_status(
     await hass.config_entries.async_reload(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.test_roomba_total_cleaning_time").state == "1.5"
-    assert hass.states.get("sensor.test_roomba_total_missions").state == "718"
-    assert hass.states.get("sensor.test_roomba_total_cleaned_area").state == "929.0"
+    assert hass.states.get("sensor.test_roomba_total_cleaning_time").state == "unknown"
+    assert hass.states.get("sensor.test_roomba_total_missions").state == "861"
+    assert hass.states.get("sensor.test_roomba_total_cleaned_area").state == "unknown"
+
+
+@pytest.mark.parametrize(
+    "stats_key",
+    [pytest.param("bbrun", id="legacy"), pytest.param("runtimeStats", id="runtime")],
+)
+async def test_lifetime_stats_from_run_report(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_roomba: AsyncMock,
+    entity_registry: er.EntityRegistry,
+    stats_key: str,
+) -> None:
+    """Test cumulative runtime and area are read and converted from run stats."""
+    reported = mock_roomba.master_state["state"]["reported"]
+    reported[stats_key] = {"hr": 211, "min": 48, "sqft": 566}
+
+    with patch("homeassistant.components.roomba.PLATFORMS", [Platform.SENSOR]):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    entity_registry.async_update_entity(
+        "sensor.test_roomba_total_cleaned_area", disabled_by=None
+    )
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.test_roomba_total_cleaning_time").state == "211.8"
+    assert hass.states.get("sensor.test_roomba_total_cleaned_area").state == "52.5814"
