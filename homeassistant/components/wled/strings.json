@@ -38,6 +38,11 @@
         "name": "Firmware"
       }
     },
+    "button": {
+      "next_playlist_entry": {
+        "name": "Next playlist entry"
+      }
+    },
     "light": {
       "main": {
         "name": "Main"
@@ -113,6 +118,9 @@
       }
     },
     "switch": {
+      "audio_reactive": {
+        "name": "Audio reactive"
+      },
       "freeze": {
         "name": "Freeze"
       },
@@ -140,6 +148,9 @@
     "connection_error": {
       "message": "Error communicating with WLED API: {error}"
     },
+    "duplicate_mac_address": {
+      "message": "Multiple WLED configuration entries exist for MAC address {mac_address}, remove the duplicates to migrate."
+    },
     "firmware_upgrade_failed": {
       "message": "Updating the WLED firmware failed: {error}"
     },
@@ -151,6 +162,9 @@
     },
     "mac_address_mismatch": {
       "message": "MAC address does not match the configured device. Expected to connect to device with MAC: {expected_mac}, but connected to device with MAC: {actual_mac}."
+    },
+    "no_playlist_running": {
+      "message": "No playlist is running on the WLED device."
     },
     "unsupported_version": {
       "message": "The WLED device's firmware version is not supported: {error}"
